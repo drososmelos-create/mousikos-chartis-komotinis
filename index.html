@@ -1,0 +1,336 @@
+<!-- OSM-ONLY MAP: no Google Maps API, SDK, iframe, or map dependency. -->
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Μουσικός Χάρτης Μνήμης της Κομοτηνής</title>
+
+<link rel="stylesheet"
+ href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+ integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+ crossorigin="">
+
+<style>
+:root{
+  --ink:#29251f; --muted:#756e64; --paper:#eee8dc;
+  --paper2:#f6f1e8; --line:#bdb3a4; --accent:#665849;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+.page{max-width:1250px;margin:auto;padding:28px}
+.kicker{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:Georgia,serif;font-weight:500;font-size:clamp(30px,4vw,48px);line-height:1.05;margin:7px 0 12px}
+.intro{max-width:780px;margin-bottom:22px}
+.epigraph{font-family:Georgia,serif;font-style:italic;color:#62594e;font-size:17px;line-height:1.6}
+.layout{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,.55fr);gap:18px}
+.map-wrap{border:1px solid var(--line);background:#ddd6cb;padding:7px}
+#map{height:650px;min-height:420px}
+.panel{background:var(--paper2);border:1px solid var(--line);padding:20px;min-height:650px}
+.place-title{font-family:Georgia,serif;font-size:28px;margin-top:5px}
+.fragment{font-family:Georgia,serif;font-size:16px;line-height:1.7;color:#62594f}
+.music{border-top:1px solid #d5cdc1;padding:14px 0;display:flex;justify-content:space-between;gap:12px;align-items:center}
+.listen,.voice{display:inline-flex;align-items:center;justify-content:center;min-height:40px;padding:7px 12px;border:1px solid #9f9486;border-radius:2px;color:var(--ink);text-decoration:none;background:transparent;cursor:pointer}
+.listen:hover,.voice:hover{background:#ebe4d8}
+.voices{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px}
+.note{font-size:12px;line-height:1.55;color:var(--muted);margin-top:18px}
+.leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#f6f1e8}
+.leaflet-popup-content{font-family:system-ui,sans-serif}
+.leaflet-control-attribution{font-size:10px}
+.marker-dot{width:18px;height:18px;border-radius:50%;background:#665849;border:3px solid #f6f1e8;box-shadow:0 0 0 1px #665849}
+.marker-dot.approx{background:#8d8172;border-style:dashed}
+.legend{margin-top:12px;font-size:12px;color:var(--muted)}
+
+.modal-backdrop{
+  position:fixed; inset:0; z-index:2000;
+  display:none; align-items:center; justify-content:center;
+  padding:22px; background:rgba(35,31,27,.72);
+  backdrop-filter:blur(5px);
+}
+.modal-backdrop.open{display:flex}
+.music-modal{
+  width:min(900px,96vw); background:#f6f1e8;
+  border:1px solid #bdb3a4; box-shadow:0 24px 70px rgba(0,0,0,.28);
+  padding:14px;
+}
+.modal-head{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:15px; padding:5px 6px 12px;
+}
+.modal-title{font-family:Georgia,serif;font-size:22px;color:#29251f}
+.modal-close{
+  border:1px solid #a99e90;background:transparent;color:#29251f;
+  width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;
+}
+.modal-close:hover{background:#e9e1d5}
+.video-frame{
+  position:relative;width:100%;aspect-ratio:16/9;background:#181512;
+}
+.video-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+.modal-foot{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  padding:12px 6px 2px;font-size:12px;color:#756e64;
+}
+.modal-youtube{
+  color:#29251f;text-decoration:none;border-bottom:1px solid #9f9486;padding-bottom:2px;
+}
+@media(max-width:600px){
+ .modal-backdrop{padding:10px}.music-modal{padding:9px}
+ .modal-title{font-size:18px}.modal-foot{align-items:flex-start;flex-direction:column}
+}
+
+.map-source{
+  position:absolute; left:18px; bottom:10px; z-index:1000;
+  background:rgba(246,241,232,.92); border:1px solid #c9beb0;
+  padding:6px 9px; font:11px Georgia,serif; color:#665e55;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+}
+@media(max-width:850px){
+ .page{padding:16px}.layout{grid-template-columns:1fr}#map{height:58vh;min-height:430px}.panel{min-height:auto}
+ .music{align-items:flex-start;flex-direction:column}.listen{width:100%}
+}
+</style>
+</head>
+
+<body>
+<main class="page">
+  <section class="intro">
+    <div class="kicker">Κομοτηνή · τόπος / μνήμη / ήχος</div>
+    <h1>Μουσικός Χάρτης Μνήμης</h1>
+    <p class="epigraph">
+      Ένας χάρτης που δεν ζητά να θυμηθεί την πόλη όπως ήταν.
+      Ακούει αυτό που επιμένει να επιστρέφει.
+    </p>
+  </section>
+
+  <div class="layout">
+    <section>
+      <div class="map-wrap"><div id="map"></div></div>
+      <div class="map-source">Χάρτης: OpenStreetMap · χωρίς Google Maps</div>
+<div class="legend">
+        Τα ιστορικά σημεία εμφανίζονται με ακριβή θέση όπου υπάρχει τεκμηριωμένο σημείο.
+        Οι ιστορικές περιοχές χωρίς μοναδικό σημείο παρουσιάζονται ενδεικτικά.
+      </div>
+    </section>
+
+    <aside class="panel" id="panel">
+      <div class="kicker">άνοιξε έναν τόπο</div>
+      <p class="fragment">
+        Κάθε σημείο είναι μια είσοδος. Πάτησε πάνω του. Άκουσε.
+        Η ιστορία δεν βρίσκεται μόνο στον τόπο· βρίσκεται και σε αυτό
+        που το σώμα θυμάται όταν ακούει.
+      </p>
+      <div class="voices" id="voices"></div>
+      <p class="note">
+        Τα μουσικά links ανοίγουν τις πηγές που μου έδωσες.
+        Ο χάρτης χρησιμοποιεί OpenStreetMap μέσω Leaflet.
+      </p>
+    </aside>
+  </div>
+</main>
+
+
+<div class="modal-backdrop" id="musicModal" aria-hidden="true">
+  <div class="music-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <div class="modal-head">
+      <div class="modal-title" id="modalTitle">Μουσικό ίχνος</div>
+      <button class="modal-close" id="modalClose" aria-label="Κλείσιμο">×</button>
+    </div>
+    <div class="video-frame">
+      <iframe id="musicFrame"
+        title="Μουσικό ίχνος"
+        src=""
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+        allowfullscreen></iframe>
+    </div>
+    <div class="modal-foot">
+      <span id="modalCaption">Η μουσική ακούγεται μέσα στον χάρτη.</span>
+      <a id="modalYoutube" class="modal-youtube" href="#" target="_blank" rel="noopener">Άνοιγμα στο YouTube ↗</a>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+ integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+ crossorigin=""></script>
+
+<script>
+const sites = [
+ {
+  name:"Ιμαρέτ", lat:41.1192083, lon:25.4020333, exact:true, kind:"τόπος",
+  text:"Εδώ αρχίζει η ακρόαση. Ένας τόπος που έχει δεχθεί πολλές χρήσεις, πολλά βλέμματα, πολλές μνήμες.",
+  music:[["Άκουσε το μουσικό ίχνος","https://www.youtube.com/watch?v=o_6PpUVHNLM"]]
+ },
+ {
+  name:"Εσκί Τζαμί", lat:41.11988, lon:25.40224, exact:true, kind:"τόπος",
+  text:"Το παλιό τέμενος. Η μνήμη δεν είναι παλιά όταν συνεχίζει να ακούγεται.",
+  music:[["Άκουσε το μουσικό ίχνος","https://www.youtube.com/watch?v=GHmTSYYhUKg"]]
+ },
+ {
+  name:"Γενί Τζαμί", lat:41.11893, lon:25.40489, exact:true, kind:"τόπος",
+  text:"Το νέο τέμενος. Ένας ακόμη τόπος όπου η πόλη αλλάζει χωρίς να παύει να κουβαλά το προηγούμενο στρώμα της.",
+  music:[["Άκουσε το μουσικό ίχνος","https://www.youtube.com/watch?v=JUDIGW9mU3I"]]
+ },
+ {
+  name:"Βυζαντινά Τείχη", lat:41.119906, lon:25.400486, exact:true, kind:"τόπος",
+  text:"Πέτρα, όριο, περίβολος. Κι ύστερα μια φωνή που περνά το τείχος.",
+  music:[["Άξιον Εστί","https://www.youtube.com/watch?v=-ObDw_Px0Co"]]
+ },
+ {
+  name:"Εβραϊκή συνοικία", lat:41.120203, lon:25.399589, exact:true, kind:"ίχνος",
+  text:"Μια συνοικία που δεν υπάρχει πια με τον ίδιο τρόπο. Η μουσική γίνεται εδώ φορέας μιας απουσίας.",
+  music:[
+   ["Μουσικό ίχνος α","https://www.youtube.com/watch?v=asiMyMpMa08"],
+   ["Μουσικό ίχνος β","https://www.youtube.com/watch?v=t2ZKR6OldHE"]
+  ]
+ },
+ {
+  name:"Αρμένικη συνοικία", lat:41.115253, lon:25.407990, exact:true, kind:"ίχνος",
+  text:"Μια φωνή από τη διασπορά. Ο Gomidas ως ηχητική μνήμη ενός τόπου που υπερβαίνει τα σύνορά του.",
+  music:[["Gomidas","https://www.youtube.com/watch?v=-Hj1nQiZG9E"]]
+ },
+ {
+  name:"Roma Neighborhood", lat:41.122, lon:25.421, exact:false, kind:"ενδεικτική περιοχή",
+  text:"Τρεις μουσικές χειρονομίες. Όχι ένα τραγούδι για μια γειτονιά, αλλά μια γειτονιά που ανοίγει σε περισσότερες από μία μνήμες.",
+  music:[
+   ["Roma · α","https://www.youtube.com/watch?v=ymlJ4bbjF6o"],
+   ["Roma · β","https://www.youtube.com/watch?v=F8xoqeIEeRM"],
+   ["Roma · γ","https://www.youtube.com/watch?v=8J313FPXs3M"]
+  ]
+ }
+];
+
+const voices = [
+ {
+  name:"Πομάκοι",
+  text:"Μια φωνή που δεν τοποθετείται εδώ ως σύνορο, αλλά ως ακουστική μνήμη μέσα και πέρα από την πόλη.",
+  music:[
+   ["Πομάκοι · α","https://www.youtube.com/watch?v=UmMkDJGOCTg"],
+   ["Πομάκοι · β · Alinka Platse","https://l.ead.me/alinkaplatse"]
+  ]
+ },
+ {
+  name:"Σαρακατσάνοι",
+  text:"Μια μουσική φωνή που εισέρχεται στον χάρτη ως μνήμη και όχι ως αυθαίρετη χωροθέτηση.",
+  music:[["Σαρακατσάνοι · α","https://www.youtube.com/watch?v=zxuGrdhrCLw"]]
+ },
+ {
+  name:"Μικρασιάτες",
+  text:"Μια μουσική μνήμη της Μικράς Ασίας, που συναντά την πόλη μέσα από τον ήχο.",
+  music:[["Μικρασιάτες · α","https://youtu.be/aG3GZNmkYaA?feature=shared"]]
+ }
+];
+
+const map = L.map("map", {zoomControl:true}).setView([41.1192,25.4040],16);
+
+const musicModal = document.getElementById("musicModal");
+const musicFrame = document.getElementById("musicFrame");
+const modalTitle = document.getElementById("modalTitle");
+const modalYoutube = document.getElementById("modalYoutube");
+const modalClose = document.getElementById("modalClose");
+
+function youtubeEmbed(url){
+  try{
+    const u = new URL(url);
+    let id = u.searchParams.get("v");
+    if(!id && u.hostname.includes("youtu.be")) id = u.pathname.slice(1);
+    return id ? `https://www.youtube.com/embed/${id}?rel=0` : null;
+  }catch(e){ return null; }
+}
+
+function openMusic(url, title){
+  const embed = youtubeEmbed(url);
+  modalTitle.textContent = title || "Μουσικό ίχνος";
+  modalYoutube.href = url;
+  if(embed){
+    musicFrame.src = embed;
+    musicModal.classList.add("open");
+    musicModal.setAttribute("aria-hidden","false");
+    document.body.style.overflow="hidden";
+    setTimeout(()=>modalClose.focus(),50);
+  }else{
+    window.open(url,"_blank","noopener");
+  }
+}
+
+function closeMusic(){
+  musicModal.classList.remove("open");
+  musicModal.setAttribute("aria-hidden","true");
+  musicFrame.src = "";
+  document.body.style.overflow="";
+}
+
+modalClose.addEventListener("click", closeMusic);
+musicModal.addEventListener("click", e => {
+  if(e.target === musicModal) closeMusic();
+});
+document.addEventListener("keydown", e => {
+  if(e.key === "Escape" && musicModal.classList.contains("open")) closeMusic();
+});
+
+
+L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+ maxZoom:19,
+ attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap contributors</a>'
+}).addTo(map);
+
+function icon(exact){
+ return L.divIcon({
+  className:"",
+  html:`<div class="marker-dot ${exact ? "" : "approx"}"></div>`,
+  iconSize:[18,18], iconAnchor:[9,9], popupAnchor:[0,-10]
+ });
+}
+
+function openSite(site){
+ const musicHTML = site.music.map(m =>
+   `<div class="music">
+      <span>🎵 ${m[0]}</span>
+      <button class="listen" type="button" onclick="openMusic('${m[1]}','${site.name.replace(/'/g, "\\'")} · ${m[0].replace(/'/g, "\\'")}')">άκουσε ▶</button>
+    </div>`
+ ).join("");
+
+ document.getElementById("panel").innerHTML =
+   `<div class="kicker">${site.kind}</div>
+    <div class="place-title">${site.name}</div>
+    <p class="fragment">${site.text}</p>
+    ${musicHTML}
+    <div class="note">${site.exact ? "Τεκμηριωμένο σημείο στον χάρτη." : "Ενδεικτική θέση ιστορικής/κοινωνικής περιοχής."}</div>`;
+
+ map.setView([site.lat,site.lon],17,{animate:true});
+}
+
+sites.forEach(site=>{
+ const marker=L.marker([site.lat,site.lon],{icon:icon(site.exact)}).addTo(map);
+ marker.bindTooltip(site.name,{direction:"top",offset:[0,-7]});
+ marker.on("click",()=>openSite(site));
+});
+
+const bounds=L.latLngBounds(sites.map(s=>[s.lat,s.lon]));
+L.polyline(
+ sites.map(s=>[s.lat,s.lon]),
+ {color:"#665849",weight:1,dashArray:"4 8",opacity:.5}
+).addTo(map);
+
+const voiceBox=document.getElementById("voices");
+
+voices.forEach(v=>{
+ const b=document.createElement("button");
+ b.className="voice";
+ b.textContent=v.name;
+ b.onclick=()=>{
+  document.getElementById("panel").innerHTML =
+   `<div class="kicker">μουσική φωνή</div>
+    <div class="place-title">${v.name}</div>
+    <p class="fragment">${v.text}</p>
+    ${v.music.map(m=>`
+      <div class="music">
+       <span>🎵 ${m[0]}</span>
+       <button class="listen" type="button" onclick="openMusic('${m[1]}','${v.name.replace(/'/g, "\\'")} · ${m[0].replace(/'/g, "\\'")}')">άκουσε ▶</button>
+      </div>`).join("")}`;
+ };
+ voiceBox.appendChild(b);
+});
+</script>
+</body>
+</html>
